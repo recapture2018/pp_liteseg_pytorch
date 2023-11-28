@@ -11,9 +11,7 @@ def avg_reduce_channel(x):
     elif len(x) == 1:
         return torch.mean(x[0], dim=1, keepdim=True)
     else:
-        res = []
-        for xi in x:
-            res.append(torch.mean(xi, dim=1, keepdim=True))
+        res = [torch.mean(xi, dim=1, keepdim=True) for xi in x]
         return torch.cat(res, dim=1)
 
 def avg_reduce_hw(x):
@@ -24,9 +22,7 @@ def avg_reduce_hw(x):
     elif len(x) == 1:
         return F.adaptive_avg_pool2d(x[0], 1)
     else:
-        res = []
-        for xi in x:
-            res.append(F.adaptive_avg_pool2d(xi, 1))
+        res = [F.adaptive_avg_pool2d(xi, 1) for xi in x]
         return torch.cat(res, dim=1)
 
 def avg_max_reduce_channel_helper(x, use_concat=True):
@@ -34,14 +30,11 @@ def avg_max_reduce_channel_helper(x, use_concat=True):
     assert not isinstance(x, (list, tuple))
     mean_value = torch.mean(x, dim=1, keepdim=True)
     max_value = torch.max(x, dim=1, keepdim=True)[0]
-    # print("mean_value: ", mean_value)
-    # print("max_value: ", max_value)
-
-    if use_concat:
-        res = torch.cat([mean_value, max_value], dim=1)
-    else:
-        res = [mean_value, max_value]
-    return res
+    return (
+        torch.cat([mean_value, max_value], dim=1)
+        if use_concat
+        else [mean_value, max_value]
+    )
 
 def avg_max_reduce_channel(x):
     # Reduce hw by avg and max
@@ -59,17 +52,12 @@ def avg_max_reduce_channel(x):
 def avg_max_reduce_hw_helper(x, is_training, use_concat=True):
     assert not isinstance(x, (list, tuple))
     avg_pool = F.adaptive_avg_pool2d(x, 1)
-    # TODO(pjc): when dim=[2, 3], the paddle.max api has bug for training.
-    if is_training:
-        max_pool = F.adaptive_max_pool2d(x, 1)
-    else:
-        max_pool = F.adaptive_max_pool2d(x, 1)
-
-    if use_concat:
-        res = torch.cat([avg_pool, max_pool], dim=1)
-    else:
-        res = [avg_pool, max_pool]
-    return res
+    max_pool = F.adaptive_max_pool2d(x, 1)
+    return (
+        torch.cat([avg_pool, max_pool], dim=1)
+        if use_concat
+        else [avg_pool, max_pool]
+    )
 
 
 def avg_max_reduce_hw(x, is_training):
@@ -98,8 +86,7 @@ class ConvBNReLU(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        out = self.relu(self.bn(self.conv(x)))
-        return out
+        return self.relu(self.bn(self.conv(x)))
 
 class ConvBN(nn.Module):
     def __init__(self, in_planes, out_planes, kernel=3, stride=1):
@@ -108,8 +95,7 @@ class ConvBN(nn.Module):
         self.bn = nn.BatchNorm2d(out_planes)
 
     def forward(self, x):
-        out = self.bn(self.conv(x))
-        return out
+        return self.bn(self.conv(x))
 
 class ConvBNAct(nn.Module):
     def __init__(self, in_planes, out_planes, kernel=3, stride=1, act_type="leakyrelu"):
@@ -122,8 +108,7 @@ class ConvBNAct(nn.Module):
             self.act = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        out = self.act(self.bn(self.conv(x)))
-        return out
+        return self.act(self.bn(self.conv(x)))
 
 
 class UAFM(nn.Module):
@@ -162,8 +147,7 @@ class UAFM(nn.Module):
         return x
 
     def prepare_y(self, x, y):
-        y_up = F.interpolate(y, x.shape[2:], mode=self.resize_mode)
-        return y_up
+        return F.interpolate(y, x.shape[2:], mode=self.resize_mode)
 
     def fuse(self, x, y):
         out = x + y
@@ -178,8 +162,7 @@ class UAFM(nn.Module):
         """
         self.check(x, y)
         x, y = self.prepare(x, y)
-        out = self.fuse(x, y)
-        return out
+        return self.fuse(x, y)
 
 
 class UAFM_ChAtten(UAFM):
