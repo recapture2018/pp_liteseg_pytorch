@@ -49,17 +49,17 @@ class PPLiteSeg(nn.Module):
         backbone = STDCNet813()
         self.backbone = backbone
         assert hasattr(backbone, 'feat_channels'), \
-            "The backbone should has feat_channels."
+                "The backbone should has feat_channels."
         assert len(backbone.feat_channels) >= len(backbone_indices), \
-            f"The length of input backbone_indices ({len(backbone_indices)}) should not be" \
-            f"greater than the length of feat_channels ({len(backbone.feat_channels)})."
+                f"The length of input backbone_indices ({len(backbone_indices)}) should not be" \
+                f"greater than the length of feat_channels ({len(backbone.feat_channels)})."
         assert len(backbone.feat_channels) > max(backbone_indices), \
-            f"The max value ({max(backbone_indices)}) of backbone_indices should be " \
-            f"less than the length of feat_channels ({len(backbone.feat_channels)})."
+                f"The max value ({max(backbone_indices)}) of backbone_indices should be " \
+                f"less than the length of feat_channels ({len(backbone.feat_channels)})."
         self.backbone = backbone
 
         assert len(backbone_indices) > 1, "The lenght of backbone_indices " \
-            "should be greater than 1"
+                "should be greater than 1"
         self.backbone_indices = backbone_indices  # [..., x16_id, x32_id]
         backbone_out_chs = [backbone.feat_channels[i] for i in backbone_indices]
 
@@ -67,7 +67,7 @@ class PPLiteSeg(nn.Module):
         if len(arm_out_chs) == 1:
             arm_out_chs = arm_out_chs * len(backbone_indices)
         assert len(arm_out_chs) == len(backbone_indices), "The length of " \
-            "arm_out_chs and backbone_indices should be equal"
+                "arm_out_chs and backbone_indices should be equal"
 
         self.ppseg_head = PPLiteSegHead(backbone_out_chs, arm_out_chs,
                                         cm_bin_sizes, cm_out_ch, arm_type,
@@ -76,14 +76,14 @@ class PPLiteSeg(nn.Module):
         if len(seg_head_inter_chs) == 1:
             seg_head_inter_chs = seg_head_inter_chs * len(backbone_indices)
         assert len(seg_head_inter_chs) == len(backbone_indices), "The length of " \
-            "seg_head_inter_chs and backbone_indices should be equal"
+                "seg_head_inter_chs and backbone_indices should be equal"
         self.seg_heads = nn.ModuleList()  # [..., head_16, head32]
         for in_ch, mid_ch in zip(arm_out_chs, seg_head_inter_chs):
             self.seg_heads.append(SegHead(in_ch, mid_ch, num_classes))
 
         # pretrained
         if pretrain_model:
-            print('use pretrain model {}'.format(pretrain_model))
+            print(f'use pretrain model {pretrain_model}')
             self.init_weight(pretrain_model)
         else:
             self.init_params()
@@ -93,8 +93,8 @@ class PPLiteSeg(nn.Module):
 
         feats_backbone = self.backbone(x)  # [x2, x4, x8, x16, x32]
         assert len(feats_backbone) >= len(self.backbone_indices), \
-            f"The nums of backbone feats ({len(feats_backbone)}) should be greater or " \
-            f"equal than the nums of backbone_indices ({len(self.backbone_indices)})"
+                f"The nums of backbone feats ({len(feats_backbone)}) should be greater or " \
+                f"equal than the nums of backbone_indices ({len(self.backbone_indices)})"
 
         feats_selected = [feats_backbone[i] for i in self.backbone_indices]
 
@@ -107,17 +107,14 @@ class PPLiteSeg(nn.Module):
                 x = seg_head(x)
                 logit_list.append(x)
 
-            logit_list = [
-                F.interpolate(
-                    x, x_hw, mode='bilinear', align_corners=False)
+            return [
+                F.interpolate(x, x_hw, mode='bilinear', align_corners=False)
                 for x in logit_list
             ]
         else:
             x = self.seg_heads[0](feats_head[0])
             x = F.interpolate(x, x_hw, mode='bilinear', align_corners=False)
-            logit_list = [x]
-
-        return logit_list
+            return [x]
 
     def init_weight(self, pretrain_model):
 

@@ -12,8 +12,7 @@ class ConvX(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        out = self.relu(self.bn(self.conv(x)))
-        return out
+        return self.relu(self.bn(self.conv(x)))
 
 
 class AddBottleneck(nn.Module):
@@ -54,10 +53,7 @@ class AddBottleneck(nn.Module):
         out = x
 
         for idx, conv in enumerate(self.conv_list):
-            if idx == 0 and self.stride == 2:
-                out = self.avd_layer(conv(out))
-            else:
-                out = conv(out)
+            out = self.avd_layer(conv(out)) if idx == 0 and self.stride == 2 else conv(out)
             out_list.append(out)
 
         if self.stride == 2:
@@ -100,10 +96,7 @@ class CatBottleneck(nn.Module):
 
         for idx, conv in enumerate(self.conv_list[1:]):
             if idx == 0:
-                if self.stride == 2:
-                    out = conv(self.avd_layer(out1))
-                else:
-                    out = conv(out1)
+                out = conv(self.avd_layer(out1)) if self.stride == 2 else conv(out1)
             else:
                 out = conv(out)
             out_list.append(out)
@@ -121,10 +114,10 @@ class STDCNet1446(nn.Module):
     def __init__(self, base=64, layers=[4, 5, 3], block_num=4, type="cat", num_classes=1000, dropout=0.20,
                  pretrain_model='', use_conv_last=False):
         super(STDCNet1446, self).__init__()
-        if type == "cat":
-            block = CatBottleneck
-        elif type == "add":
+        if type == "add":
             block = AddBottleneck
+        elif type == "cat":
+            block = CatBottleneck
         self.use_conv_last = use_conv_last
         self.features = self._make_layers(base, layers, block_num, block)
         self.conv_last = ConvX(base * 16, max(1024, base * 16), 1, 1)
@@ -142,7 +135,7 @@ class STDCNet1446(nn.Module):
         self.x32 = nn.Sequential(self.features[11:])
 
         if pretrain_model:
-            print('use pretrain model {}'.format(pretrain_model))
+            print(f'use pretrain model {pretrain_model}')
             self.init_weight(pretrain_model)
         else:
             self.init_params()
@@ -214,10 +207,10 @@ class STDCNet813(nn.Module):
     def __init__(self, base=64, layers=[2, 2, 2], block_num=4, type="cat", num_classes=1000, dropout=0.20,
                  pretrain_model='', use_conv_last=False):
         super(STDCNet813, self).__init__()
-        if type == "cat":
-            block = CatBottleneck
-        elif type == "add":
+        if type == "add":
             block = AddBottleneck
+        elif type == "cat":
+            block = CatBottleneck
         self.use_conv_last = use_conv_last
         self.features = self._make_layers(base, layers, block_num, block)
         self.conv_last = ConvX(base * 16, max(1024, base * 16), 1, 1)
@@ -237,7 +230,7 @@ class STDCNet813(nn.Module):
         self.feat_channels = [base // 2, base, base * 4, base * 8, base * 16]
 
         if pretrain_model:
-            print('use pretrain model {}'.format(pretrain_model))
+            print(f'use pretrain model {pretrain_model}')
             self.init_weight(pretrain_model)
         else:
             self.init_params()
